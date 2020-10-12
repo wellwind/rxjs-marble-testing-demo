@@ -1,8 +1,10 @@
-import { from, Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { from, Observable, of, timer } from 'rxjs';
+import { map, take } from 'rxjs/operators';
 
-export const plusOne = (input: number[]) => from(input).pipe(
-  map(value => value + 1)
+export const emitOne$ = of(1);
+export const emitOneToFour$ = of(1, 2, 3, 4);
+export const emitOntToFourPerSecond$ = timer(0, 1000).pipe(
+  take(4)
 );
 
-export const plusOneOperator = (source$: Observable<number>) => source$.pipe(map(value => value + 1));
+export const plusOne = () => (source$: Observable<number>) => source$.pipe(map(value => value + 1));

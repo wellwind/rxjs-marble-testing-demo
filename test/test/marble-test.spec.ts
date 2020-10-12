@@ -1,6 +1,7 @@
 import { iif, of, throwError } from 'rxjs';
 import { concatMap, delay, map, switchMap, take } from 'rxjs/operators';
 import { TestScheduler } from 'rxjs/testing';
+import { emitOne$, emitOneToFour$, emitOntToFourPerSecond$, plusOne } from '../../src';
 
 describe('使用 TestScheduler 測試', () => {
   let testScheduler: TestScheduler;
@@ -9,31 +10,62 @@ describe('使用 TestScheduler 測試', () => {
     testScheduler = new TestScheduler((actual, expected) => {
       expect(actual).toEqual(expected);
     });
-  })
+  });
 
   it('測試 take operator', () => {
     testScheduler.run(helper => {
       const { cold, expectObservable, expectSubscriptions } = helper;
-      const sourceMarbleDiagram =   '---a---b---c---d---e---|';
-      const sourceObservable = cold(sourceMarbleDiagram);
-      const expectedSubscription =  '^----------!';
-      const expectedResult =        '---a---b---(c|)';
 
+      const sourceMarbleDiagram = '---a---b---c---d---e---|';
+      const expectedSubscription = '^----------!';
+      const expectedResult = '---a---b---(c|)';
+
+      const sourceObservable = cold(sourceMarbleDiagram);
       const source$ = sourceObservable.pipe(take(3));
+
       expectObservable(source$).toBe(expectedResult);
       expectSubscriptions(sourceObservable.subscriptions).toBe(expectedSubscription);
     });
-  })
+  });
 
   it('測試 map operator (帶入 value)', () => {
     testScheduler.run(helper => {
       const { cold, expectObservable } = helper;
-      const sourceMarbleDiagram =  '---a---b---c---|';
-      const sourceObservable = cold(sourceMarbleDiagram, { a: 1, b: 2, c: 3 });
-      const expectedResult =       '---x---y---z---|';
+      const sourceMarbleDiagram = '--a--b--c--d--|';
+      const expectedResult = '--w--x--y--z--|';
 
+      const sourceObservable = cold(sourceMarbleDiagram, { a: 1, b: 2, c: 3, d: 4 });
       const source$ = sourceObservable.pipe(map(value => value + 1));
-      expectObservable(source$).toBe(expectedResult, { x: 2, y: 3, z: 4 });
+      expectObservable(source$).toBe(expectedResult, { w: 2, x: 3, y: 4, z: 5 });
+    });
+  });
+
+  it('測試 map operator (帶入更複雜的 value)', () => {
+    testScheduler.run(helper => {
+      const { cold, expectObservable } = helper;
+
+      const input = {
+        a: { name: 'Student A', score: 25 },
+        b: { name: 'Student B', score: 49 },
+        c: { name: 'Student C', score: 100 },
+        d: { name: 'Student D', score: 0 }
+      };
+      const expected = {
+        w: { name: 'Student A', score: 50 },
+        x: { name: 'Student B', score: 70 },
+        y: { name: 'Student C', score: 100 },
+        z: { name: 'Student D', score: 0 }
+      };
+
+      const sourceMarbleDiagram = '--a--b--c--d--|';
+      const expectedResult = '--w--x--y--z--|';
+
+      const sourceObservable = cold(sourceMarbleDiagram, input);
+
+      const source$ = sourceObservable.pipe(
+        map(student => ({ ...student, score: Math.sqrt(student.score) * 10 }))
+      );
+      expectObservable(source$).toBe(expectedResult, expected);
     });
   });
 
@@ -41,16 +73,16 @@ describe('使用 TestScheduler 測試', () => {
     testScheduler.run(helper => {
       const { cold, expectObservable, expectSubscriptions } = helper;
 
-      const sourceMarbleDiagram =   '---1---2---3---|';
-      const sourceObservable = cold(sourceMarbleDiagram);
-      const expectedResult =        '---1---2---#';
-      const expectedSubscription =  '^----------!';
+      const sourceMarbleDiagram = '---1---2---3---|';
+      const expectedResult = '---1---2---#';
+      const expectedSubscription = '^----------!';
 
+      const sourceObservable = cold(sourceMarbleDiagram);
       const source$ = sourceObservable.pipe(
         switchMap(value =>
           iif(() => value === '3', throwError('error'), of(value))
         )
-      )
+      );
 
       expectObservable(source$).toBe(expectedResult);
       expectSubscriptions(sourceObservable.subscriptions).toBe(expectedSubscription);
@@ -59,12 +91,12 @@ describe('使用 TestScheduler 測試', () => {
 
   it('測試時間 time frame', () => {
     testScheduler.run(helper => {
-      const { cold, expectObservable, expectSubscriptions } = helper;
+      const { cold, expectObservable } = helper;
 
       const sourceMarbleDiagram = '(123|)';
-      const sourceObservable = cold(sourceMarbleDiagram);
-      const expectedResult =      '--- 7ms 1 9ms 2 9ms (3|)';
+      const expectedResult = '--- 7ms 1 9ms 2 9ms (3|)';
 
+      const sourceObservable = cold(sourceMarbleDiagram);
       const source$ = sourceObservable.pipe(
         concatMap(value => of(value).pipe(delay(10)))
       );
@@ -78,14 +110,69 @@ describe('使用 TestScheduler 測試', () => {
       const { hot, expectObservable } = helper;
 
       const sourceMarbleDiagram = '--1--2--3--4--5--6--7--8';
+      const subscription1 = '-------^-------!';
+      const subscription2 = '-----------^-----!';
+      const expectedResult1 = '--------3--4--5-';
+      const expectedResult2 = '-----------4--5---';
+
       const sourceObservable = hot(sourceMarbleDiagram);
-      const subscription1 =       '-------^-------!';
-      const subscription2 =       '-----------^-----!';
-      const expectedResult1 =     '--------3--4--5-';
-      const expectedResult2 =     '-----------4--5---';
 
       expectObservable(sourceObservable, subscription1).toBe(expectedResult1);
       expectObservable(sourceObservable, subscription2).toBe(expectedResult2);
+    });
+  });
+
+  describe('使用 TestSchedule 測試實際寫好的 Observable 或 Operator', () => {
+
+    it('彈珠圖測試單一個事件的 Observable', () => {
+      testScheduler.run(helper => {
+        const { expectObservable } = helper;
+
+        // 1 會被當事件字串，因此不能這樣寫
+        // const expectedResult = (1|);
+        const expected = '(a|)';
+        expectObservable(emitOne$).toBe(expected, { a: 1 });
+      });
+    });
+
+    it('彈珠圖測試多個事件的 Observable', () => {
+      testScheduler.run(helper => {
+        const { expectObservable } = helper;
+
+        const expected = '(abcd|)';
+        expectObservable(emitOneToFour$).toBe(expected, { a: 1, b: 2, c: 3, d: 4 });
+      });
+    });
+
+    it('彈珠圖測試非同步處理的 Observable', () => {
+      testScheduler.run(helper => {
+        const { expectObservable } = helper;
+
+        // 因為事件本身佔一個 frame，所以用 999ms
+        const expected = 'a 999ms b 999ms c 999ms (d|)';
+        expectObservable(emitOntToFourPerSecond$).toBe(expected, { a: 0, b: 1, c: 2, d: 3 });
+      });
+    });
+
+    it('彈珠圖搭配 pipe 測試 operator', () => {
+      testScheduler.run(helper => {
+        const { expectObservable } = helper;
+
+        const source$ = of(1).pipe(plusOne());
+        const expected = '(a|)';
+        expectObservable(source$).toBe(expected, { a: 2 });
+      });
+    });
+
+    it('彈珠圖測試單獨一個 operator', () => {
+      testScheduler.run(helper => {
+        const { expectObservable } = helper;
+
+        const one$ = of(1);
+        const source$ = plusOne()(one$);
+        const expected = '(a|)';
+        expectObservable(source$).toBe(expected, { a: 2 });
+      });
     });
   });
 });
