@@ -1,0 +1,25 @@
+{
+  "name": "rxjs-testing",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "karma start"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "rxjs": "^6.6.3"
+  },
+  "devDependencies": {
+    "@types/jasmine": "^3.5.14",
+    "@types/node": "^14.11.8",
+    "jasmine-core": "^3.6.0",
+    "karma": "^5.2.3",
+    "karma-chrome-launcher": "^3.1.0",
+    "karma-jasmine": "^4.0.1",
+    "karma-spec-reporter": "^0.0.32",
+    "karma-typescript": "^5.2.0",
+    "typescript": "^4.0.3"
+  }
+}
