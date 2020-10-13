@@ -1,4 +1,3 @@
-import { debounceTime } from 'rxjs/operators';
 import { TestScheduler } from 'rxjs/testing';
 import { debounceInput } from '../../src/debounce-input';
 
