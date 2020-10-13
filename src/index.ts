@@ -1,4 +1,4 @@
-import { from, Observable, of, timer } from 'rxjs';
+import { Observable, of, timer } from 'rxjs';
 import { map, take } from 'rxjs/operators';
 
 export const emitOne$ = of(1);
